@@ -14,6 +14,7 @@ using System.Web.Mvc;
 
 namespace PowerBIEmbedded_AppOwnsData.Controllers
 {
+    [Authorize]
     public class HomeController : Controller
     {
         private readonly IEmbedService m_embedService;

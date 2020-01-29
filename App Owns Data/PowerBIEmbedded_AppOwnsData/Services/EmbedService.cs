@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
@@ -22,13 +23,13 @@ namespace PowerBIEmbedded_AppOwnsData.Services
         private static readonly string ApiUrl = ConfigurationManager.AppSettings["apiUrl"];
         private static readonly string WorkspaceId = ConfigurationManager.AppSettings["workspaceId"];
         private static readonly string ReportId = ConfigurationManager.AppSettings["reportId"];
-
+        private static readonly string DashboardId = ConfigurationManager.AppSettings["dashboardId"];
         private static readonly string AuthenticationType = ConfigurationManager.AppSettings["AuthenticationType"];
         private static readonly NameValueCollection sectionConfig = ConfigurationManager.GetSection(AuthenticationType) as NameValueCollection;
         private static readonly string ApplicationSecret = sectionConfig["applicationSecret"];
         private static readonly string Tenant = sectionConfig["tenant"];
-        private static readonly string Username = sectionConfig["pbiUsername"];
-        private static readonly string Password = sectionConfig["pbiPassword"];
+        private static readonly string Username = ConfigurationManager.AppSettings["pbiUsername"];
+        private static readonly string Password = ConfigurationManager.AppSettings["pbiPassword"];
 
         public EmbedConfig EmbedConfig
         {
@@ -53,7 +54,7 @@ namespace PowerBIEmbedded_AppOwnsData.Services
 
         public async Task<bool> EmbedReport(string username, string roles)
         {
-            
+
             // Get token credentials for user
             var getCredentialsResult = await GetTokenCredentials();
             if (!getCredentialsResult)
@@ -95,21 +96,39 @@ namespace PowerBIEmbedded_AppOwnsData.Services
                     }
 
                     var datasets = await client.Datasets.GetDatasetByIdInGroupAsync(WorkspaceId, report.DatasetId);
+
                     m_embedConfig.IsEffectiveIdentityRequired = datasets.IsEffectiveIdentityRequired;
                     m_embedConfig.IsEffectiveIdentityRolesRequired = datasets.IsEffectiveIdentityRolesRequired;
                     GenerateTokenRequest generateTokenRequestParameters;
                     // This is how you create embed token with effective identities
-                    if (!string.IsNullOrWhiteSpace(username))
+                    ClaimsPrincipal user = HttpContext.Current.User as ClaimsPrincipal;
+                    List<Claim> claims = user.Claims.ToList();
+                    var ident = user.Identities.ToList();
+                    //string name = claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                    string usernameObj = "e6092d2d-07be-49f2-91b7-cdf3491fe744";//obj id  1329be85-964f-450d-a4be-a4ad585a3cf8 "ipereverzina@eastbanctech.com";12c70cdd-7645-445f-b79d-30cdda50388d //"3e5c9d8b-9be4-485f-aaec-997fe09d8208
+
+                    //var customData = null;
+
+                    if (!string.IsNullOrWhiteSpace(usernameObj)) 
                     {
-                        var rls = new EffectiveIdentity(username, new List<string> { report.DatasetId });
-                        if (!string.IsNullOrWhiteSpace(roles))
-                        {
+                        var rls = new EffectiveIdentity(usernameObj, new List<string> { report.DatasetId });
+                    //    if (!string.IsNullOrWhiteSpace(roles))
+                    //    {
                             var rolesList = new List<string>();
-                            rolesList.AddRange(roles.Split(','));
-                            rls.Roles = rolesList;
-                        }
-                        // Generate Embed Token with effective identities.
-                        generateTokenRequestParameters = new GenerateTokenRequest(accessLevel: "view", identities: new List<EffectiveIdentity> { rls });
+                        //rolesList.AddRange(roles.Split(','));
+
+                       if(ident[0].Name == "d-manager@eastbanctech.com")
+                        rolesList.Add("InternetSalesUS");
+                       else
+                        rolesList.Add("InternetSalesAU");
+
+                        rls.Roles = rolesList;
+                     //   }
+
+                    
+
+                    // Generate Embed Token with effective identities.
+                    generateTokenRequestParameters = new GenerateTokenRequest(accessLevel: "view", identities: new List<EffectiveIdentity> { rls });
                     }
                     else
                     {
@@ -215,7 +234,7 @@ namespace PowerBIEmbedded_AppOwnsData.Services
                     var dashboards = await client.Dashboards.GetDashboardsInGroupAsync(WorkspaceId);
 
                     // Get the first report in the workspace.
-                    var dashboard = dashboards.Value.FirstOrDefault();
+                    var dashboard = dashboards.Value.Where(it => it.Id == DashboardId).FirstOrDefault();
 
                     if (dashboard == null)
                     {
@@ -228,8 +247,48 @@ namespace PowerBIEmbedded_AppOwnsData.Services
                     // Get the first tile in the workspace.
                     var tile = tiles.Value.FirstOrDefault();
 
+                    ClaimsPrincipal user = HttpContext.Current.User as ClaimsPrincipal;
+                    List<Claim> claims = user.Claims.ToList();
+                    var ident = user.Identities.ToList();
+                    //string name = claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                    string name = "e6092d2d-07be-49f2-91b7-cdf3491fe744";//obj id  1329be85-964f-450d-a4be-a4ad585a3cf8 "ipereverzina@eastbanctech.com";12c70cdd-7645-445f-b79d-30cdda50388d //"3e5c9d8b-9be4-485f-aaec-997fe09d8208
+                    //var generateTokenRequestParameters = new GenerateTokenRequest("View", null,
+                    //    identities: new List<EffectiveIdentity> {
+                    //        new EffectiveIdentity(username: name, 
+                            
+                    //        roles: new List<string>
+                    //        {
+                    //           "InternetSalesUS"
+
+                    ////"InternetSalesAU"
+                    //         //"InternetSalesManager"
+                    //        },
+              
+                    //  datasets: new List<string> { tile.DatasetId }) });
+
+
+
+                    var rls = new EffectiveIdentity(username: name, datasets: new List<string> { tile.DatasetId });
+                    //    if (!string.IsNullOrWhiteSpace(roles))
+                    //    {
+                    var rolesList = new List<string>();
+                    //rolesList.AddRange(roles.Split(','));
+
+                    if (ident[0].Name == "d-manager@eastbanctech.com")
+                        rolesList.Add("InternetSalesUS");
+                    else
+                        rolesList.Add("InternetSalesAU");
+
+                    rls.Roles = rolesList;
+
+                    var generateTokenRequestParameters = new GenerateTokenRequest(accessLevel: "view", identities: new List<EffectiveIdentity> { rls });
+
+
+
+
                     // Generate Embed Token for a tile.
-                    var generateTokenRequestParameters = new GenerateTokenRequest(accessLevel: "view");
+
+                    //var generateTokenRequestParameters = new GenerateTokenRequest(accessLevel: "view");
                     var tokenResponse = await client.Tiles.GenerateTokenInGroupAsync(WorkspaceId, dashboard.Id, tile.Id, generateTokenRequestParameters);
 
                     if (tokenResponse == null)

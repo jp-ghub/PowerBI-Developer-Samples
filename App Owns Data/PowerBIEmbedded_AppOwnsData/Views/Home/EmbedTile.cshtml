@@ -21,9 +21,15 @@
 }
 
 <h2>Embedded Tile</h2>
+
+@if (string.IsNullOrEmpty(Model.Username))
+{
 <div>
-    The following tile is the first tile found in the first dashboard in given group. Please feel free to change the code to match your needs.
+    You are logged as:<br />
+    @HttpContext.Current.User.Identity.Name<br />
 </div>
+}
+
 <div id="tileContainer"></div>
 
 @if (string.IsNullOrEmpty(Model.EmbedUrl))
@@ -32,9 +38,8 @@
 }
 
 <div class="infoBox">
-    Code is in files:<br />
-    1) HomeController.cs<br />
-    2) EmbedTile.cshtml
+    Eastbanc Technologies&reg <br />
+    2020
 </div>
 
 @Html.Partial("LiveDemoLink")
